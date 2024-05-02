@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -9,7 +8,7 @@ public class GeneticAlgorithm {
     private final double crossoverRate;
     private final double mutationRate;
     private final double selectionRate;
-    private final List<double[]> population;
+    private final List<String[]> population;
     private final FitnessFunction fitnessFunction;
     private final Random random;
     private long evolutionDuration;
@@ -26,12 +25,25 @@ public class GeneticAlgorithm {
         this.fitnessFunction = fitnessFunction;
     }
 
-    private List<double[]> generatePopulation(double[] bounds){
-        List<double[]> population = new ArrayList<>();
+    private List<String[]> generatePopulation(double[] bounds){
+        List<String[]> population = new ArrayList<>();
         for (int i = 0; i < populationSize; ++i)
-            population.add(new double[] {bounds[0] + random.nextDouble() * (bounds[1] - bounds[0]), bounds[0] + random.nextDouble() * (bounds[1] - bounds[0])});
+            population.add(new String[]{
+                    encode(bounds[0] + random.nextDouble() * (bounds[1] - bounds[0])),
+                    encode(bounds[0] + random.nextDouble() * (bounds[1] - bounds[0]))
+            });
 
         return population;
+    }
+
+    private String encode(double value) {
+        long longBits = Double.doubleToLongBits(value);
+        return Long.toBinaryString(longBits);
+    }
+
+    private double decode(String value) {
+        long longBits = Long.parseUnsignedLong(value, 2);
+        return Double.longBitsToDouble(longBits);
     }
 
     public void startEvolution() {
@@ -40,8 +52,10 @@ public class GeneticAlgorithm {
 
         for (int gen = 0; gen < iterationNumber; ++gen) {
             List<Double> scores = new ArrayList<>();
-            for (double[] individual : population) {
-                double score = fitnessFunction.calculate(individual[0], individual[1]);
+            for (String[] individual : population) {
+                double x = decode(individual[0]);
+                double y = decode(individual[1]);
+                double score = fitnessFunction.calculate(x, y);
                 scores.add(score);
 
                 if (score < bestScore) {
@@ -49,15 +63,12 @@ public class GeneticAlgorithm {
                 }
             }
 
-            // Обрання батьків і виконання кросоверу та мутації
-            List<double[]> children = new ArrayList<>();
+            List<String[]> children = new ArrayList<>();
 
             for (int i = 0; i < populationSize; i += 2) {
-                double[][] offspring;
-                if (random.nextDouble() < selectionRate) { // Ймовірність відбору нащадків
-                    //offspring = crossover(tournamentSelection(population, scores), tournamentSelection(population, scores));
-                    //offspring = crossover(randomSelection(), randomSelection());
-                    offspring = crossover(tournamentSelection(population, scores), tournamentSelection(population, scores));
+                String[][] offspring;
+                if (random.nextDouble() < selectionRate) {
+                    offspring = crossover(tournamentSelection(scores), tournamentSelection(scores));
                     mutate(offspring[0]);
                     mutate(offspring[1]);
                 } else {
@@ -67,7 +78,7 @@ public class GeneticAlgorithm {
                     while (randomIndex1 == randomIndex2)
                         randomIndex2 = random.nextInt(population.size());
 
-                    offspring = new double[][]{population.get(randomIndex1), population.get(randomIndex2)};
+                    offspring = new String[][]{population.get(randomIndex1), population.get(randomIndex2)};
                 }
                 children.add(offspring[0]);
                 children.add(offspring[1]);
@@ -82,13 +93,14 @@ public class GeneticAlgorithm {
         evolutionDuration = System.currentTimeMillis() - startTime;
     }
 
-
-    private double[][] crossover(double[] parent1, double[] parent2) {
-        double[][] offspring = new double[2][2];
+    private String[][] crossover(String[] parent1, String[] parent2) {
+        String[][] offspring = new String[2][2];
         if (random.nextDouble() < crossoverRate) {
             int crossoverPoint = random.nextInt(parent1.length);
-            offspring[0] = concatenateArrays(Arrays.copyOfRange(parent1, 0, crossoverPoint), Arrays.copyOfRange(parent2, crossoverPoint, parent2.length));
-            offspring[1] = concatenateArrays(Arrays.copyOfRange(parent2, 0, crossoverPoint), Arrays.copyOfRange(parent1, crossoverPoint, parent1.length));
+            offspring[0][0] = parent1[0].substring(0, crossoverPoint) + parent2[0].substring(crossoverPoint);
+            offspring[1][0] = parent2[0].substring(0, crossoverPoint) + parent1[0].substring(crossoverPoint);
+            offspring[0][1] = parent1[1].substring(0, crossoverPoint) + parent2[1].substring(crossoverPoint);
+            offspring[1][1] = parent2[1].substring(0, crossoverPoint) + parent1[1].substring(crossoverPoint);
         } else {
             offspring[0] = parent1;
             offspring[1] = parent2;
@@ -96,15 +108,9 @@ public class GeneticAlgorithm {
         return offspring;
     }
 
-    private double[] concatenateArrays(double[] a, double[] b) {
-        double[] result = new double[a.length + b.length];
-        System.arraycopy(a, 0, result, 0, a.length);
-        System.arraycopy(b, 0, result, a.length, b.length);
-        return result;
-    }
-
-    private double[] tournamentSelection(List<double[]> population, List<Double> scores) { //обираємо 3 особи, серед них найкращу
-        double[] bestIndividual = null;
+    private String[] tournamentSelection(List<Double> scores) {
+        //обираємо 3 особи, серед них найкращу
+        String[] bestIndividual = population.get(0);
         double bestScore = Double.MAX_VALUE;
 
         for (int i = 0; i < 3; i++) {
@@ -119,11 +125,11 @@ public class GeneticAlgorithm {
         return bestIndividual;
     }
 
-    private double[] randomSelection() {
+    private String[] randomSelection() {
         return population.get(random.nextInt(population.size()));
     }
 
-    private double[] proportionalSelection(List<double[]> population, List<Double> scores) {
+    private String[] proportionalSelection(List<Double> scores) {
         // Сума всіх оцінок у популяції
         double totalScore = 0;
         for (double score : scores) {
@@ -146,10 +152,15 @@ public class GeneticAlgorithm {
         return population.get(population.size() - 1);
     }
 
-    private void mutate(double[] individual) {
+    private void mutate(String[] individual) {
         for (int i = 0; i < individual.length; i++)
-            if (random.nextDouble() < mutationRate)
-                individual[i] = individual[i] + random.nextGaussian();
+            if (random.nextDouble() < mutationRate) {
+                int index = random.nextInt(individual.length);
+                char[] chars = individual[index].toCharArray();
+                chars[random.nextInt(chars.length)] = (chars[random.nextInt(chars.length)] == '0') ? '1' : '0';
+                individual[index] = String.valueOf(chars);
+            }
+
     }
 
     public long getEvolutionDuration() { return evolutionDuration;}
