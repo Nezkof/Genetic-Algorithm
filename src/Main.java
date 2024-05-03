@@ -45,8 +45,8 @@ public class Main {
             double avgDuration = 0;
             for (int j = 1; j <= TESTS_NUMBER; ++j) {
                 algorithm.startEvolution();
-                System.out.printf("%3s%17.5s%18.7f%17.7f\n", j, algorithm.getEvolutionDuration() + " ms", algorithm.getBestScore(), getError(algorithm.getBestScore(), functions[i].calculate(tableVariables[i][0], tableVariables[i][1])));
-                avgError += getError(algorithm.getBestScore(), functions[i].calculate(tableVariables[i][0], tableVariables[i][1]));
+                System.out.printf("%3s%17.5s%18.7f%17.7f\n", j, algorithm.getEvolutionDuration() + " ms", algorithm.getOptimalScore(), getError(algorithm.getOptimalScore(), functions[i].calculate(tableVariables[i][0], tableVariables[i][1])));
+                avgError += getError(algorithm.getOptimalScore(), functions[i].calculate(tableVariables[i][0], tableVariables[i][1]));
                 avgDuration += algorithm.getEvolutionDuration();
             }
             System.out.println("-------------------------------------------------------");
